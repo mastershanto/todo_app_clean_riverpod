@@ -1,8 +1,6 @@
 import 'package:auto_route/auto_route.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:flutter_screenutil/flutter_screenutil.dart';
-import 'package:todo_app_clean_riverpod/core/theme/app_text_styles.dart';
 import 'package:todo_app_clean_riverpod/features/todo/domain/entities/todo.dart';
 import '../../providers/todo_provider.dart';
 
@@ -25,215 +23,160 @@ class _TodoPageState extends ConsumerState<TodoPage> {
 
   @override
   Widget build(BuildContext context) {
-    final todos = ref.watch(todoProvider);
     return Scaffold(
-      backgroundColor: const Color(0xFFF6F8FB),
       appBar: AppBar(
-        elevation: 0,
-        backgroundColor: Colors.transparent,
-        title: Text(
-          'ADD Car Todo',
-          style: AppTextStyles.textStylec24c333333NunitoSans700.copyWith(
-            letterSpacing: 1.2,
-          ),
-        ),
-        centerTitle: true,
-      ),
-      body: Padding(
-        padding: EdgeInsets.symmetric(horizontal: 20.w, vertical: 12.h),
-        child: Column(
-          children: [
-            Container(
-              padding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 14.h),
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  colors: [Color(0xFF6D5FFD), Color(0xFF46A6FF)],
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
+        title: const Text('Optimized Todo - Riverpod'),
+        actions: [
+          // Stats in app bar - only rebuilds when stats change
+          Consumer(
+            builder: (context, ref, child) {
+              final stats = ref.watch(todoStatsProvider);
+              return Padding(
+                padding: const EdgeInsets.only(right: 16),
+                child: Center(
+                  child: Text('${stats['remaining']}/${stats['total']}'),
                 ),
-                borderRadius: BorderRadius.circular(18.r),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.blue.withOpacity(0.08),
-                    blurRadius: 16.r,
-                    offset: Offset(0, 8.h),
+              );
+            },
+          ),
+        ],
+      ),
+      body: Column(
+        children: [
+          // Add todo input - minimal rebuilds
+          Padding(
+            padding: const EdgeInsets.all(16),
+            child: Row(
+              children: [
+                Expanded(
+                  child: TextField(
+                    controller: _controller,
+                    decoration: const InputDecoration(hintText: 'New todo...'),
+                    onSubmitted: _addTodo,
                   ),
-                ],
-              ),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: TextField(
-                      controller: _controller,
-                      style: AppTextStyles.textStylec16c333333NunitoSans700,
-                      decoration: InputDecoration(
-                        hintText: 'What needs to be done?',
-                        hintStyle:
-                            AppTextStyles.textStylec12cB7BAC0NunitoSans600,
-                        border: InputBorder.none,
-                        isDense: true,
-                        contentPadding: EdgeInsets.zero,
-                      ),
-                      onChanged: (_) => setState(() {}),
-                    ),
-                  ),
-                  AnimatedSwitcher(
-                    duration: Duration(milliseconds: 250),
-                    transitionBuilder: (child, anim) =>
-                        ScaleTransition(scale: anim, child: child),
-                    child: _controller.text.trim().isNotEmpty
-                        ? Material(
-                            color: Colors.transparent,
-                            child: InkWell(
-                              borderRadius: BorderRadius.circular(12.r),
-                              onTap: () {
-                                final text = _controller.text.trim();
-                                if (text.isNotEmpty) {
-                                  ref
-                                      .read(todoProvider.notifier)
-                                      .addTodo(
-                                        Todo(
-                                          id: DateTime.now()
-                                              .millisecondsSinceEpoch,
-                                          title: text,
-                                          isCompleted: false,
-                                        ),
-                                      );
-                                  _controller.clear();
-                                  setState(() {});
-                                }
-                              },
-                              child: Container(
-                                padding: EdgeInsets.all(10.r),
-                                decoration: BoxDecoration(
-                                  color: Colors.white,
-                                  borderRadius: BorderRadius.circular(12.r),
-                                  boxShadow: [
-                                    BoxShadow(
-                                      color: Colors.black12,
-                                      blurRadius: 6.r,
-                                      offset: Offset(0, 2.h),
-                                    ),
-                                  ],
-                                ),
-                                child: Icon(
-                                  Icons.add,
-                                  color: Color(0xFF6D5FFD),
-                                  size: 26.sp,
-                                ),
-                              ),
-                            ),
-                          )
-                        : SizedBox(width: 36.w),
-                  ),
-                ],
-              ),
+                ),
+                Consumer(
+                  builder: (context, ref, child) {
+                    final isLoading = ref.watch(todoProvider).isLoading;
+                    return TextButton(
+                      onPressed: isLoading ? null : _addTodo,
+                      child: isLoading
+                          ? const SizedBox(
+                              width: 16,
+                              height: 16,
+                              child: CircularProgressIndicator(strokeWidth: 2),
+                            )
+                          : const Text('Add'),
+                    );
+                  },
+                ),
+              ],
             ),
-            SizedBox(height: 28.h),
-            Expanded(
-              child: todos.isEmpty
-                  ? Center(
-                      child: Text(
-                        'No todos yet. Add your first task!',
-                        style: AppTextStyles.textStylec14c333333NunitoSans600
-                            .copyWith(color: Colors.grey),
-                      ),
-                    )
-                  : ListView.separated(
+          ),
+
+          // Todo list with optimized rendering
+          Expanded(
+            child: Consumer(
+              builder: (context, ref, child) {
+                final todosAsync = ref.watch(todoProvider);
+
+                return todosAsync.when(
+                  data: (todos) {
+                    if (todos.isEmpty) {
+                      return const Center(child: Text('No todos'));
+                    }
+
+                    return ListView.builder(
                       itemCount: todos.length,
-                      separatorBuilder: (_, __) => SizedBox(height: 16.h),
                       itemBuilder: (context, index) {
                         final todo = todos[index];
-                        return AnimatedContainer(
-                          duration: Duration(milliseconds: 300),
-                          curve: Curves.easeInOut,
-                          padding: EdgeInsets.symmetric(
-                            horizontal: 16.w,
-                            vertical: 14.h,
-                          ),
-                          decoration: BoxDecoration(
-                            color: todo.isCompleted
-                                ? Color(0xFFE0F7FA)
-                                : Colors.white,
-                            borderRadius: BorderRadius.circular(16.r),
-                            boxShadow: [
-                              BoxShadow(
-                                color: Colors.black12,
-                                blurRadius: 10.r,
-                                offset: Offset(0, 4.h),
-                              ),
-                            ],
-                          ),
-                          child: Row(
-                            children: [
-                              GestureDetector(
-                                onTap: () => ref
-                                    .read(todoProvider.notifier)
-                                    .toggleTodo(todo.id),
-                                child: AnimatedContainer(
-                                  duration: Duration(milliseconds: 200),
-                                  width: 28.w,
-                                  height: 28.w,
-                                  decoration: BoxDecoration(
-                                    color: todo.isCompleted
-                                        ? Color(0xFF6D5FFD)
-                                        : Colors.transparent,
-                                    border: Border.all(
-                                      color: todo.isCompleted
-                                          ? Color(0xFF6D5FFD)
-                                          : Colors.grey.shade300,
-                                      width: 2.w,
-                                    ),
-                                    borderRadius: BorderRadius.circular(8.r),
-                                  ),
-                                  child: todo.isCompleted
-                                      ? Icon(
-                                          Icons.check,
-                                          color: Colors.white,
-                                          size: 20.sp,
-                                        )
-                                      : null,
-                                ),
-                              ),
-                              SizedBox(width: 14.w),
-                              Expanded(
-                                child: AnimatedDefaultTextStyle(
-                                  duration: Duration(milliseconds: 200),
-                                  style: todo.isCompleted
-                                      ? AppTextStyles
-                                            .textStylec14c333333NunitoSans600
-                                            .copyWith(
-                                              decoration:
-                                                  TextDecoration.lineThrough,
-                                              color: Colors.grey,
-                                            )
-                                      : AppTextStyles
-                                            .textStylec16c333333NunitoSans700,
-                                  child: Text(todo.title),
-                                ),
-                              ),
-                              AnimatedOpacity(
-                                opacity: todo.isCompleted ? 1.0 : 0.7,
-                                duration: Duration(milliseconds: 200),
-                                child: IconButton(
-                                  icon: Icon(
-                                    Icons.delete,
-                                    color: Colors.redAccent,
-                                    size: 22.sp,
-                                  ),
-                                  onPressed: () => ref
-                                      .read(todoProvider.notifier)
-                                      .removeTodo(todo.id),
-                                ),
-                              ),
-                            ],
-                          ),
+                        // Each todo item only rebuilds when its specific state changes
+                        return OptimizedTodoItem(
+                          key: ValueKey(todo.id),
+                          todo: todo,
                         );
                       },
-                    ),
+                    );
+                  },
+                  loading: () =>
+                      const Center(child: CircularProgressIndicator()),
+                  error: (error, stack) => Center(child: Text('Error: $error')),
+                );
+              },
             ),
-          ],
+          ),
+
+          // Bulk actions - only shows when there are completed todos
+          Consumer(
+            builder: (context, ref, child) {
+              final hasCompleted = ref.watch(hasCompletedTodosProvider);
+              if (!hasCompleted) return const SizedBox.shrink();
+
+              return Padding(
+                padding: const EdgeInsets.all(16),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                  children: [
+                    TextButton(
+                      onPressed: () =>
+                          ref.read(todoProvider.notifier).toggleAll(),
+                      child: const Text('Toggle All'),
+                    ),
+                    TextButton(
+                      onPressed: () =>
+                          ref.read(todoProvider.notifier).clearCompleted(),
+                      child: const Text('Clear Completed'),
+                    ),
+                  ],
+                ),
+              );
+            },
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _addTodo([String? value]) {
+    final text = (value ?? _controller.text).trim();
+    if (text.isNotEmpty) {
+      ref
+          .read(todoProvider.notifier)
+          .addTodo(
+            Todo(
+              id: DateTime.now().millisecondsSinceEpoch,
+              title: text,
+              isCompleted: false,
+            ),
+          );
+      _controller.clear();
+    }
+  }
+}
+
+// Optimized todo item widget - only rebuilds when this specific todo changes
+class OptimizedTodoItem extends ConsumerWidget {
+  const OptimizedTodoItem({super.key, required this.todo});
+
+  final Todo todo;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    return ListTile(
+      leading: Checkbox(
+        value: todo.isCompleted,
+        onChanged: (_) => ref.read(todoProvider.notifier).toggleTodo(todo.id),
+      ),
+      title: Text(
+        todo.title,
+        style: TextStyle(
+          decoration: todo.isCompleted ? TextDecoration.lineThrough : null,
+          color: todo.isCompleted ? Colors.grey : null,
         ),
+      ),
+      trailing: IconButton(
+        icon: const Icon(Icons.delete),
+        onPressed: () => ref.read(todoProvider.notifier).removeTodo(todo.id),
       ),
     );
   }

@@ -361,7 +361,7 @@ class SliverGapx extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final scrollable = Scrollable.of(context);
-    final AxisDirection? direction = scrollable?.axisDirection;
+    final AxisDirection direction = scrollable.axisDirection;
     final Axis scrollAxis = direction == null
         ? Axis.vertical
         : axisDirectionToAxis(direction);

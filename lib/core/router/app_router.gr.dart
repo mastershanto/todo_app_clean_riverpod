@@ -11,7 +11,7 @@ part of 'app_router.dart';
 
 abstract class _$AppRouter extends RootStackRouter {
   // ignore: unused_element
-  _$AppRouter({super.navigatorKey});
+  _$AppRouter();
 
   @override
   final Map<String, PageFactory> pagesMap = {
@@ -20,18 +20,16 @@ abstract class _$AppRouter extends RootStackRouter {
         routeData: routeData,
         child: const TodoPage(),
       );
-    }
+    },
   };
 }
+
 
 /// generated route for
 /// [TodoPage]
 class TodoRoute extends PageRouteInfo<void> {
   const TodoRoute({List<PageRouteInfo>? children})
-      : super(
-          TodoRoute.name,
-          initialChildren: children,
-        );
+    : super(TodoRoute.name, initialChildren: children);
 
   static const String name = 'TodoRoute';
 
